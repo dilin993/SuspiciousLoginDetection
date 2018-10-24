@@ -42,5 +42,3 @@ def getGelocation(ip):
     response = requests.get(API_ENDPOINT + ip, params=params)
     geolocation =  GeoLocation.loadFromJson(response.json())
     return geolocation
-
-print getGelocation('100.3.4.5').country
