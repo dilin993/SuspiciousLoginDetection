@@ -2,3 +2,7 @@
 *.pyc
 
 config.yaml
+
+venv/
+.vscode/
+.idea/

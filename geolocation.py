@@ -1,5 +1,7 @@
 import yaml
 import requests
+import math
+import numpy as np
 
 API_KEY = None
 API_ENDPOINT = 'http://api.ipstack.com/'
@@ -42,3 +44,21 @@ def getGelocation(ip):
     response = requests.get(API_ENDPOINT + ip, params=params)
     geolocation =  GeoLocation.loadFromJson(response.json())
     return geolocation
+
+
+## calculate distance between two points given by longitude, latitude
+def distance(longitudeA, latitudeA, longitudeB, latitudeB):
+    longitudeA = math.radians(longitudeA)
+    latitudeA = math.radians(latitudeA)
+    longitudeB = math.radians(longitudeB)
+    latitudeB = math.radians(latitudeB)
+    R_EARTH = 6378100.0
+    dlon = longitudeB - longitudeA
+    dlat = latitudeB - latitudeB
+    a = math.sin(dlat / 2) ** 2 + math.cos(latitudeA) * math.cos(latitudeB) * math.sin(dlon / 2) ** 2
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    dist = R_EARTH * c
+    if math.isnan(dist):
+        return 0
+    else:
+        return dist
