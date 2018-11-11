@@ -36,7 +36,7 @@ for username in usernames:
 
 
 ### Generate successful login
-def generateSuccessfulLogin(df, givenTime=None, username=None, contextID=None, ip=None):
+def generateSuccessfulLogin(df, givenTime=None, username=None, contextID=None, ip=None, isSuspicious=False):
     global currentTime, usernames, ipAddressesForUsers, geolocationForUsers, index
 
     if username is None:
@@ -71,6 +71,13 @@ def generateSuccessfulLogin(df, givenTime=None, username=None, contextID=None, i
     df.at[index+1, constants.HEADER_REMOTEIP] = ip
     df.at[index, constants.HEADER_AUTHENTICATIONSUCCESS] = 0
     df.at[index+1, constants.HEADER_AUTHENTICATIONSUCCESS] = 1
+
+    if isSuspicious:
+        df.at[index, constants.HEADER_SUSPICIOUS_LOGIN] = 1
+        df.at[index + 1, constants.HEADER_SUSPICIOUS_LOGIN] = 1
+    else:
+        df.at[index, constants.HEADER_SUSPICIOUS_LOGIN] = 0
+        df.at[index + 1, constants.HEADER_SUSPICIOUS_LOGIN] = 0
 
     df.at[index, constants.HEADER_LATITUDE] = geoloc.latitude
     df.at[index, constants.HEADER_LONGITUDE] = geoloc.longitude
@@ -111,6 +118,7 @@ def generateFailedLogin(df, iter=0, givenTime=None, username=None, contextID=Non
         df.at[index, constants.HEADER_REMOTEIP] = ipAddressesForUsers[username]
 
         df.at[index, constants.HEADER_AUTHENTICATIONSUCCESS] = 0
+        df.at[index, constants.HEADER_SUSPICIOUS_LOGIN] = 0
 
         df.at[index, constants.HEADER_LATITUDE] = geoloc.latitude
         df.at[index, constants.HEADER_LONGITUDE] = geoloc.longitude
@@ -128,7 +136,7 @@ def generateSuspiciousLoginScenario1(df, givenTime=None):
     failureCount = random.randrange(4,7)
     generateFailedLogin(df, failureCount, currentTime, username, contextID)
     index = index + failureCount
-    generateSuccessfulLogin(df, givenTime, username, contextID)
+    generateSuccessfulLogin(df, givenTime, username, contextID,isSuspicious=True)
     index = index + 1
 
 
@@ -144,12 +152,12 @@ def generateSuspiciousLoginScenario2(df, givenTime=None):
     geolocationForIP[ip] = geolocation.getGelocation(ip)
     generateSuccessfulLogin(df, givenTime, username, contextID)
     index = index + 1
-    generateSuccessfulLogin(df, givenTime, username, contextID, ip)
+    generateSuccessfulLogin(df, givenTime, username, contextID, ip, isSuspicious=True)
     index = index + 1
 
 LOGIN_TABLE_COLUMNS = [constants.HEADER_USERNAME, constants.HEADER_CONTEXTID, constants.HEADER_EVENTTYPE,
  constants.HEADER_AUTHENTICATIONSUCCESS, constants.HEADER_REMOTEIP, constants.HEADER_TIMESTAMP, constants.HEADER_LATITUDE,
- constants.HEADER_LONGITUDE, constants.HEADER_COUNTRY]
+ constants.HEADER_LONGITUDE, constants.HEADER_COUNTRY, constants.HEADER_SUSPICIOUS_LOGIN]
 
 loginData = pd.DataFrame(index=None, columns=LOGIN_TABLE_COLUMNS)
 index = 0
@@ -169,8 +177,5 @@ for i in range(iterations):
 
 print loginData
 
-loginData.to_csv('loginData.csv')
-
-    
-    
-    
+fileName = 'loginData-' +  datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S') + '.csv'
+loginData.to_csv(fileName)

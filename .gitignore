@@ -6,3 +6,5 @@ config.yaml
 venv/
 .vscode/
 .idea/
+model.*
+~lock*

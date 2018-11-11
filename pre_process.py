@@ -4,9 +4,9 @@ import datetime
 import math
 import geolocation
 
-df = pd.read_csv('loginData-24-10-2018.csv')
+df = pd.read_csv('loginData-2018-11-10-23-57-16.csv')
 
-LOGIN_TABLE_COLUMNS = ['USERNAME', 'LOGIN_SUCCESS', 'TIME', 'IP', 'longitude', 'LATITUDE']
+LOGIN_TABLE_COLUMNS = ['USERNAME', 'LOGIN_SUCCESS', 'TIME', 'IP', 'LONGITUDE', 'LATITUDE', 'SUSPICIOUS LOGIN']
 loginTableDf = pd.DataFrame(index=None, columns=LOGIN_TABLE_COLUMNS)
 
 ## identify succesful and failed logins
@@ -29,6 +29,7 @@ for username in df[constants.HEADER_USERNAME].unique():
             loginTableDf.at[i, LOGIN_TABLE_COLUMNS[3]] = row[constants.HEADER_REMOTEIP]
             loginTableDf.at[i, LOGIN_TABLE_COLUMNS[4]] = row[constants.HEADER_LONGITUDE]
             loginTableDf.at[i, LOGIN_TABLE_COLUMNS[5]] = row[constants.HEADER_LATITUDE]
+            loginTableDf.at[i, LOGIN_TABLE_COLUMNS[6]] = row[constants.HEADER_SUSPICIOUS_LOGIN]
             i = i + 1
         elif prevRow[constants.HEADER_EVENTTYPE] == constants.EVENTYPE_STEP and prevRow[
             constants.HEADER_AUTHENTICATIONSUCCESS] == 0:
@@ -39,6 +40,7 @@ for username in df[constants.HEADER_USERNAME].unique():
             loginTableDf.at[i, LOGIN_TABLE_COLUMNS[3]] = prevRow[constants.HEADER_REMOTEIP]
             loginTableDf.at[i, LOGIN_TABLE_COLUMNS[4]] = prevRow[constants.HEADER_LONGITUDE]
             loginTableDf.at[i, LOGIN_TABLE_COLUMNS[5]] = prevRow[constants.HEADER_LATITUDE]
+            loginTableDf.at[i, LOGIN_TABLE_COLUMNS[6]] = prevRow[constants.HEADER_SUSPICIOUS_LOGIN]
             i = i + 1
         prevRow = row
     if prevRow[constants.HEADER_EVENTTYPE] == constants.EVENTYPE_STEP and prevRow[
@@ -50,6 +52,7 @@ for username in df[constants.HEADER_USERNAME].unique():
         loginTableDf.at[i, LOGIN_TABLE_COLUMNS[3]] = prevRow[constants.HEADER_REMOTEIP]
         loginTableDf.at[i, LOGIN_TABLE_COLUMNS[4]] = prevRow[constants.HEADER_LONGITUDE]
         loginTableDf.at[i, LOGIN_TABLE_COLUMNS[5]] = prevRow[constants.HEADER_LATITUDE]
+        loginTableDf.at[i, LOGIN_TABLE_COLUMNS[6]] = prevRow[constants.HEADER_SUSPICIOUS_LOGIN]
         i = i + 1
 
 print loginTableDf
@@ -66,7 +69,7 @@ j = 0
 WINDOW_SIZE = 5
 FEATURE_COLUMNS = ['Maximum consecutive failures', 'Total failures', 'Time between maximum consecutive failures',
                    'Time between last two logins', 'Maximum geo-velocity', 'Geo-velocity of last login',
-                   'Last login success']
+                   'Last login success', 'Suspicious login']
 featureDf = pd.DataFrame(index=None, columns=FEATURE_COLUMNS)
 for username in loginTableDf[LOGIN_TABLE_COLUMNS[0]].unique():
     userDf = loginTableDf[loginTableDf[LOGIN_TABLE_COLUMNS[0]] == username]
@@ -75,6 +78,7 @@ for username in loginTableDf[LOGIN_TABLE_COLUMNS[0]].unique():
         if len(prevRows) < WINDOW_SIZE:
             prevRows.append(row)
             continue
+        suspiciousLogin = row[LOGIN_TABLE_COLUMNS[6]]
         maxConsecutiveFailures = 0
         totalFailures = 0
         timeBetweenMaxCosecutiveFailures = MAX_DURATION
@@ -125,9 +129,11 @@ for username in loginTableDf[LOGIN_TABLE_COLUMNS[0]].unique():
         featureDf.at[j, FEATURE_COLUMNS[4]] = float(maxGeoVelocity)
         featureDf.at[j, FEATURE_COLUMNS[5]] = float(geoVelocityForLastLogin)
         featureDf.at[j, FEATURE_COLUMNS[6]] = float(lastLoginStatus)
+        featureDf.at[j, FEATURE_COLUMNS[7]] = float(suspiciousLogin)
         j = j + 1
 
 
 print featureDf
 
-featureDf.to_csv("features.csv")
+fileName = 'features-' +  datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S') + '.csv'
+featureDf.to_csv(fileName)
