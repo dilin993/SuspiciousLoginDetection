@@ -8,17 +8,20 @@ import seaborn as sns
 import tensorflow as tf
 from sklearn.model_selection import train_test_split
 import numpy as np
+from sklearn.metrics import classification_report
 
 
 FEATURE_COLUMNS = ['Maximum consecutive failures', 'Total failures',
                    'Time between maximum consecutive failures', 'Time between last two logins',
                    'Maximum geo-velocity', 'Geo-velocity of last login', 'Last login success']
+LABEL_COLUMN = 'Suspicious login'
 
-df = pd.read_csv('/home/dilin/wso2/projects/tf_demo/SuspiciousLoginDetection/features-2018-11-11-10-32-23.csv')
-df = df[FEATURE_COLUMNS]
+df = pd.read_csv('features-2018-11-18-21-42-48.csv')
 df = df.sample(frac=1).reset_index(drop=True)
+dfLabels = df[LABEL_COLUMN].values
+df = df[FEATURE_COLUMNS]
 
-train, test = train_test_split(df, test_size=0.1)
+x_train, x_test, y_train, y_test = train_test_split(df, dfLabels, test_size=0.3)
 
 # Training Parameters
 learning_rate = 0.01
@@ -73,24 +76,6 @@ def decoder(x):
 
 
 
-# pca = pca.PCA(x)
-#
-# pca.fit()
-#
-# y = pca.reduce(keep_info=0.95)
-#
-# kmeans = KMeans(n_clusters=2, random_state=0).fit(x)
-#
-# print float(sum(kmeans.labels_==0)) / float(len(kmeans.labels_))
-#
-# print df[kmeans.labels_==1]
-#
-# color_mapping = {0: sns.xkcd_rgb['bright purple'], 1: sns.xkcd_rgb['lime']}
-# colors = list(map(lambda x: color_mapping[x], kmeans.labels_))
-#
-# plt.scatter(y[:, 0], y[:, 1], c=colors)
-# plt.show()
-
 
 # Construct model
 encoder_op = encoder(X)
@@ -119,28 +104,41 @@ with tf.Session() as sess:
     # Run the initializer
     sess.run(init)
     min_max_scaler = preprocessing.MinMaxScaler()
-    train = min_max_scaler.fit_transform(train)
-    test = min_max_scaler.fit_transform(test)
+    x_train = min_max_scaler.fit_transform(x_train)
+    x_test = min_max_scaler.fit_transform(x_test)
 
     # Training
     for i in range(1, num_steps+1):
 
         # Run optimization op (backprop) and cost op (to get loss value)
-        _, l = sess.run([optimizer, loss], feed_dict={X: train})
+        _, l = sess.run([optimizer, loss], feed_dict={X: x_train})
         # Display logs per step
         if i % display_step == 0 or i == 1:
             print('Step %i: Minibatch Loss: %f' % (i, l))
     save_path = saver.save(sess, "./model.ckpt")
     print("Model saved in path: %s" % save_path)
 
-    y_test = sess.run(decoder_op, feed_dict={X: test})
-    meanSquareError = np.mean(np.square(test-y_test), axis=1)
-    # plt.hist(meanSquareError, color='blue', edgecolor='black',
-    #          bins=int(180 / 5))
-    # # Add labels
-    # plt.title('Histogram of Arrival Delays')
-    # plt.xlabel('Delay (min)')
-    # plt.ylabel('Flights')
-    # plt.show()
+    y = sess.run(decoder_op, feed_dict={X: x_test})
+    meanSquareError = np.mean(np.square(x_test-y), axis=1)
+    plt.hist(meanSquareError, color='blue', edgecolor='black',
+             bins=int(180 / 5))
+    # Add labels
+    plt.title('Histogram of mean squared error')
+    plt.xlabel('Mean squared error')
+    plt.ylabel('Frequency')
+    plt.show()
+    correct = 0
+    falsePositives = 0
+    falseNegatives = 0
+    rowCount = len(y_test)
+    y_pred = []
+    for i in range(rowCount):
+        curLabel = 0
+        if meanSquareError[i] > 0.05:
+            curLabel = 1
+        y_pred.append(curLabel)
+
+    y_pred = np.array(y_pred)
+    print(classification_report(y_test, y_pred, target_names=['Non-suspicious', 'Suspicious']))
 
 

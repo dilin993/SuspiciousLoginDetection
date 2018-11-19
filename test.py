@@ -15,7 +15,7 @@ FEATURE_COLUMNS = ['Maximum consecutive failures', 'Total failures',
                    'Maximum geo-velocity', 'Geo-velocity of last login', 'Last login success']
 LABEL_COLUMN = 'Suspicious login'
 
-df = pd.read_csv('/home/dilin/wso2/projects/tf_demo/SuspiciousLoginDetection/features-2018-11-11-10-32-23.csv')
+df = pd.read_csv('features-2018-11-18-21-42-48.csv')
 df = df.sample(frac=1).reset_index(drop=True)
 labels = df[LABEL_COLUMN].values
 df = df[FEATURE_COLUMNS]

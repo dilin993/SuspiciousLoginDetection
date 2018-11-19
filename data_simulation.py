@@ -161,7 +161,7 @@ LOGIN_TABLE_COLUMNS = [constants.HEADER_USERNAME, constants.HEADER_CONTEXTID, co
 
 loginData = pd.DataFrame(index=None, columns=LOGIN_TABLE_COLUMNS)
 index = 0
-iterations = 5000
+iterations = 10000
 choices = [1, 2, 3, 4]
 p = [0.6, 0.38, 0.01, 0.01]
 for i in range(iterations):
