@@ -11,30 +11,29 @@ import numpy as np
 from sklearn.metrics import classification_report
 
 
-FEATURE_COLUMNS = ['Maximum consecutive failures', 'Total failures',
-                   'Time between maximum consecutive failures', 'Time between last two logins',
-                   'Maximum geo-velocity', 'Geo-velocity of last login', 'Last login success']
-LABEL_COLUMN = 'Suspicious login'
+FEATURE_COLUMNS = ['Last Geo Velocity', 'Previous Consecutive Failures', 'Login Success',
+                       'Consecutive Failure Time', 'IP Changed Last Time', 'No. of Failures', 'Maximum Geo Velocity']
+LABEL_COLUMN = 'Suspicious Login'
 
-df = pd.read_csv('features-2018-11-18-21-42-48.csv')
+df = pd.read_csv('features-2018-11-29-19-15-36.csv')
 df = df.sample(frac=1).reset_index(drop=True)
 dfLabels = df[LABEL_COLUMN].values
 df = df[FEATURE_COLUMNS]
 
-x_train, x_test, y_train, y_test = train_test_split(df, dfLabels, test_size=0.3)
+x_train, x_test, y_train, y_test = train_test_split(df, dfLabels, test_size=0.1)
 
 # Training Parameters
 learning_rate = 0.01
 num_steps = 30000
-batch_size = 256
+batch_size = 10000
 
 display_step = 1000
 examples_to_show = 10
 
 # Network Parameters
 num_input = len(FEATURE_COLUMNS) # no. of features selected
-num_hidden_1 = int(num_input/2) # 1st layer num features
-num_hidden_2 = int(num_hidden_1/2) # 2nd layer num features (the latent dim)
+num_hidden_1 = int(num_input/2 + 1) # 1st layer num features
+num_hidden_2 = int(num_hidden_1/2 + 1) # 2nd layer num features (the latent dim)
 
 
 # tf Graph input
@@ -103,9 +102,9 @@ with tf.Session() as sess:
 
     # Run the initializer
     sess.run(init)
-    min_max_scaler = preprocessing.MinMaxScaler()
-    x_train = min_max_scaler.fit_transform(x_train)
-    x_test = min_max_scaler.fit_transform(x_test)
+    # min_max_scaler = preprocessing.MinMaxScaler()
+    # x_train = min_max_scaler.fit_transform(x_train)
+    # x_test = min_max_scaler.fit_transform(x_test)
 
     # Training
     for i in range(1, num_steps+1):
@@ -120,7 +119,11 @@ with tf.Session() as sess:
 
     y = sess.run(decoder_op, feed_dict={X: x_test})
     meanSquareError = np.mean(np.square(x_test-y), axis=1)
-    plt.hist(meanSquareError, color='blue', edgecolor='black',
+    meanSquareErrorMajority = meanSquareError[y_test == 0]
+    meanSquareErrorMinority = meanSquareError[y_test == 1]
+    plt.hist(meanSquareErrorMajority, color='blue', edgecolor='black',
+             bins=int(180 / 5))
+    plt.hist(meanSquareErrorMinority, color='red', edgecolor='black',
              bins=int(180 / 5))
     # Add labels
     plt.title('Histogram of mean squared error')
@@ -134,7 +137,7 @@ with tf.Session() as sess:
     y_pred = []
     for i in range(rowCount):
         curLabel = 0
-        if meanSquareError[i] > 0.05:
+        if meanSquareError[i] > 0.001:
             curLabel = 1
         y_pred.append(curLabel)
 

@@ -29,13 +29,18 @@ class GeoLocation:
     def loadFromJson(cls, jsonObj):
         if LATITUDE not in jsonObj or LONGITUDE not in jsonObj:
             raise ValueError('Location not found.')
-        latitude = jsonObj[LATITUDE]
-        longitude = jsonObj[LONGITUDE]
+        try :
+            latitude = float(jsonObj[LATITUDE])
+            longitude = float(jsonObj[LONGITUDE])
+        except TypeError as e:
+            latitude = 0
+            longitude = 0
         if COUNTRY_NAME in jsonObj:
             country = jsonObj[COUNTRY_NAME]
         else:
             country = 'Unknown'
         return cls(latitude, longitude, country)
+
 
 def getGelocation(ip):
     params = {
@@ -46,8 +51,8 @@ def getGelocation(ip):
     return geolocation
 
 
-## calculate distance between two points given by longitude, latitude
-def distance(longitudeA, latitudeA, longitudeB, latitudeB):
+# calculate distance between two points given by longitude, latitude
+def calculateDistance(longitudeA, latitudeA, longitudeB, latitudeB):
     longitudeA = math.radians(longitudeA)
     latitudeA = math.radians(latitudeA)
     longitudeB = math.radians(longitudeB)
@@ -62,3 +67,7 @@ def distance(longitudeA, latitudeA, longitudeB, latitudeB):
         return 0
     else:
         return dist
+
+
+def distance(geolocationA, geolocationB):
+    return calculateDistance(geolocationA.longitude, geolocationA.latitude, geolocationB.longitude, geolocationB.latitude)
