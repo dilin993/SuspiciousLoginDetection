@@ -1,7 +1,6 @@
 import yaml
 import requests
 import math
-import numpy as np
 
 API_KEY = None
 API_ENDPOINT = 'http://api.ipstack.com/'
@@ -11,12 +10,15 @@ LONGITUDE = 'longitude'
 COUNTRY_NAME = 'country_name'
 UNKNOWN = 'Unknown'
 
+R_EARTH = 6378100.0
+
 with open('config.yaml', 'r') as stream:
     try:
-        config =  yaml.load(stream)
+        config = yaml.load(stream)
         API_KEY = config['API_KEY']
     except yaml.YAMLError as exc:
         print(exc)
+
 
 class GeoLocation:
 
@@ -26,10 +28,10 @@ class GeoLocation:
         self.country = country
 
     @classmethod
-    def loadFromJson(cls, jsonObj):
+    def load_from_json(cls, jsonObj):
         if LATITUDE not in jsonObj or LONGITUDE not in jsonObj:
             raise ValueError('Location not found.')
-        try :
+        try:
             latitude = float(jsonObj[LATITUDE])
             longitude = float(jsonObj[LONGITUDE])
         except TypeError as e:
@@ -42,25 +44,24 @@ class GeoLocation:
         return cls(latitude, longitude, country)
 
 
-def getGelocation(ip):
+def get_geolocation(ip):
     params = {
         'access_key': API_KEY
     }
     response = requests.get(API_ENDPOINT + ip, params=params)
-    geolocation =  GeoLocation.loadFromJson(response.json())
+    geolocation = GeoLocation.load_from_json(response.json())
     return geolocation
 
 
 # calculate distance between two points given by longitude, latitude
-def calculateDistance(longitudeA, latitudeA, longitudeB, latitudeB):
-    longitudeA = math.radians(longitudeA)
-    latitudeA = math.radians(latitudeA)
-    longitudeB = math.radians(longitudeB)
-    latitudeB = math.radians(latitudeB)
-    R_EARTH = 6378100.0
-    dlon = longitudeB - longitudeA
-    dlat = latitudeB - latitudeB
-    a = math.sin(dlat / 2) ** 2 + math.cos(latitudeA) * math.cos(latitudeB) * math.sin(dlon / 2) ** 2
+def calculate_distance(longitude1, latitude1, longitude2, latitude2):
+    longitude1 = math.radians(longitude1)
+    latitude1 = math.radians(latitude1)
+    longitude2 = math.radians(longitude2)
+    latitude2 = math.radians(latitude2)
+    dlon = longitude2 - longitude1
+    dlat = latitude2 - latitude2
+    a = math.sin(dlat / 2) ** 2 + math.cos(latitude1) * math.cos(latitude2) * math.sin(dlon / 2) ** 2
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
     dist = R_EARTH * c
     if math.isnan(dist):
@@ -69,5 +70,6 @@ def calculateDistance(longitudeA, latitudeA, longitudeB, latitudeB):
         return dist
 
 
-def distance(geolocationA, geolocationB):
-    return calculateDistance(geolocationA.longitude, geolocationA.latitude, geolocationB.longitude, geolocationB.latitude)
+def distance(geolocation1, geolocation2):
+    return calculate_distance(geolocation1.longitude, geolocation1.latitude, geolocation2.longitude,
+                              geolocation2.latitude)
