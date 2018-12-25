@@ -9,7 +9,6 @@ from tensorflow import keras
 import numpy as np
 from sklearn.model_selection import train_test_split
 
-import pca
 import pandas as pd
 
 app = Flask(__name__)
@@ -21,7 +20,7 @@ global graph
 graph = tf.get_default_graph()
 
 
-def isSuspicious(x):
+def is_suspicious(x):
     if x is None:
         return False
     with graph.as_default():
@@ -29,18 +28,40 @@ def isSuspicious(x):
         print(x)
         y = model.predict(x)
         if np.argmax(y) == 1:
-            print("Suspicous login detected !")
-
-class LoginAnalysis(Resource):
-
-    def post(self):
-        data = request.json['event']['payloadData']
-        feature_calculation.insertToLoginData(data)
-        x = feature_calculation.getFeatures(data[feature_calculation.USER_USERNAME])
-        isSuspicious(x)
+            print("Suspicious login detected !")
+            return True
 
 
-api.add_resource(LoginAnalysis, '/')
+@app.route('/publish', methods=['POST'])
+def publish():
+    data = request.json['event']['payloadData']
+    feature_calculation.insert_to_login_data(data)
+    # x = feature_calculation.get_features(data[feature_calculation.USER_USERNAME])
+    # return str(is_suspicious(x))
+
+
+@app.route('/evaluate', methods=['GET'])
+def evaluate():
+    username = request.args.get('username')
+    x = feature_calculation.get_features(username)
+    return jsonify({'suspicious': is_suspicious(x)})
+
+
+# class LoginAnalysis(Resource):
+#
+#     def post(self):
+#         data = request.json['event']['payloadData']
+#         feature_calculation.insert_to_login_data(data)
+#         x = feature_calculation.get_features(data[feature_calculation.USER_USERNAME])
+#         is_suspicious(x)
+#
+#     def get(self):
+#         username = request.args.get('username')
+#         x = feature_calculation.get_features(username)
+#         return is_suspicious(x)
+#
+#
+# api.add_resource(LoginAnalysis, '/')
 
 if __name__ == '__main__':
     app.run(debug=False)

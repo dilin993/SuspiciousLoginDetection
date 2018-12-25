@@ -1,5 +1,4 @@
 from __future__ import division, print_function, absolute_import
-import pca
 import pandas as pd
 import matplotlib.pyplot as plt
 from sklearn import preprocessing
@@ -13,20 +12,13 @@ import numpy as np
 from sklearn.metrics import classification_report
 
 
-FEATURE_COLUMNS = ['Last Geo Velocity', 'Previous Consecutive Failures', 'Login Success',
-                   'Consecutive Failure Time',
-                   'IP Changed Last Time', 'No. of Failures']#, 'Maximum Geo Velocity']
-LABEL_COLUMN = 'Suspicious Login'
+data = np.genfromtxt('feature-2018-12-09-21-36-56.csv', delimiter=',')
+N = data[0].size - 1
 
-df = pd.read_csv('features-2018-11-30-03-32-55.csv')
-df = df.sample(frac=1).reset_index(drop=True)
-dfLabels = df[LABEL_COLUMN].values
-df = df[FEATURE_COLUMNS]
-
-x_train, x_test, y_train, y_test = train_test_split(df, dfLabels, test_size=0.3)
+x_train, x_test, y_train, y_test = train_test_split(data[:,0:-1], data[:,-1], test_size=0.3)
 
 model = keras.Sequential([
-    keras.layers.Dense(6, input_dim=len(FEATURE_COLUMNS), activation=tf.nn.relu),
+    keras.layers.Dense(6, input_dim=N, activation=tf.nn.relu),
     keras.layers.Dense(2, activation=tf.nn.softmax)
 ])
 
@@ -40,6 +32,11 @@ model.save('model.h5')
 
 
 test_loss, test_acc = model.evaluate(x_test, y_test)
+
+y_pred = model.predict(x_test)
+y_pred = np.argmax(y_pred, axis=1)
+print(classification_report(y_test, y_pred, target_names=['Non-suspicious', 'Suspicious']))
+
 
 print('Test accuracy:', test_acc)
 

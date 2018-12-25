@@ -17,11 +17,10 @@ currentTime = None
 index = 0
 
 
-def generateRandomIPV4():
+def generate_random_ipv4():
     bits = getrandbits(32)  # generates an integer with 32 random bits
     addr = IPv4Address(bits)  # instances an IPv4Address object from those bits
-    addrStr = str(addr)  # get the IPv4Address object's string representation
-    return addrStr
+    return str(addr)
 
 
 ipAddressesForUsers = {}
@@ -31,17 +30,17 @@ index = 0
 
 
 # Generate successful login
-def generateSuccessfulLogin(df, givenTime=None, username=None, contextID=None, ip=None, isSuspicious=False):
+def generate_successful_login(df, given_time=None, username=None, context_id=None, ip=None, is_suspicious=False):
     global currentTime, usernames, ipAddressesForUsers, geoLocationForIP, index
 
     if username is None:
         username = usernames[random.randrange(NUMBER_OF_USERS)]
-    eventTime = givenTime
-    if eventTime is None:
+    event_time = given_time
+    if event_time is None:
         currentTime = currentTime + datetime.timedelta(seconds=random.randrange(3000))
-        eventTime = currentTime
-    if contextID is None:
-        contextID = uuid.uuid4()
+        event_time = currentTime
+    if context_id is None:
+        context_id = uuid.uuid4()
     if ip is None:
         ip = ipAddressesForUsers[username]
     geoloc = geoLocationForIP[ip]
@@ -49,23 +48,23 @@ def generateSuccessfulLogin(df, givenTime=None, username=None, contextID=None, i
     df.at[index, constants.HEADER_USERNAME] = username
     df.at[index + 1, constants.HEADER_USERNAME] = username
 
-    df.at[index, constants.HEADER_CONTEXTID] = contextID
-    df.at[index + 1, constants.HEADER_CONTEXTID] = contextID
+    df.at[index, constants.HEADER_CONTEXTID] = context_id
+    df.at[index + 1, constants.HEADER_CONTEXTID] = context_id
 
     df.at[index, constants.HEADER_EVENTTYPE] = constants.EVENTYPE_STEP
     df.at[index + 1, constants.HEADER_EVENTTYPE] = constants.EVENTYPE_OVERALL
 
-    df.at[index, constants.HEADER_TIMESTAMP] = str(int(time.mktime(eventTime.timetuple()) * 1e3))
+    df.at[index, constants.HEADER_TIMESTAMP] = str(int(time.mktime(event_time.timetuple()) * 1e3))
     currentTime = currentTime + datetime.timedelta(seconds=random.randrange(3))
-    eventTime = currentTime
-    df.at[index + 1, constants.HEADER_TIMESTAMP] = str(int(time.mktime(eventTime.timetuple()) * 1e3))
+    event_time = currentTime
+    df.at[index + 1, constants.HEADER_TIMESTAMP] = str(int(time.mktime(event_time.timetuple()) * 1e3))
 
     df.at[index, constants.HEADER_REMOTEIP] = ip
     df.at[index + 1, constants.HEADER_REMOTEIP] = ip
     df.at[index, constants.HEADER_AUTHENTICATIONSUCCESS] = 0
     df.at[index + 1, constants.HEADER_AUTHENTICATIONSUCCESS] = 1
 
-    if isSuspicious:
+    if is_suspicious:
         df.at[index, constants.HEADER_SUSPICIOUS_LOGIN] = 1
         df.at[index + 1, constants.HEADER_SUSPICIOUS_LOGIN] = 1
     else:
@@ -82,32 +81,32 @@ def generateSuccessfulLogin(df, givenTime=None, username=None, contextID=None, i
     index = index + 2
 
 
-# Generate failed login
-def generateFailedLogin(df, iter=0, givenTime=None, username=None, contextID=None, ip=None):
+# Generate failure login
+def generate_failure_login(df, iterations=0, given_time=None, username=None, context_id=None, ip=None):
     global currentTime, usernames, ipAddressesForUsers, geoLocationForIP, index
 
     if username is None:
         username = usernames[random.randrange(NUMBER_OF_USERS)]
-    eventTime = givenTime
-    if eventTime is None:
+    event_time = given_time
+    if event_time is None:
         currentTime = currentTime + datetime.timedelta(seconds=random.randrange(3000))
-        eventTime = currentTime
-    if contextID is None:
-        contextID = uuid.uuid4()
+        event_time = currentTime
+    if context_id is None:
+        context_id = uuid.uuid4()
     if ip is None:
         ip = ipAddressesForUsers[username]
     geoloc = geoLocationForIP[ip]
 
-    for i in range(iter + 1):
+    for i in range(iterations + 1):
         df.at[index, constants.HEADER_USERNAME] = username
 
-        df.at[index, constants.HEADER_CONTEXTID] = contextID
+        df.at[index, constants.HEADER_CONTEXTID] = context_id
 
         df.at[index, constants.HEADER_EVENTTYPE] = constants.EVENTYPE_STEP
 
-        df.at[index, constants.HEADER_TIMESTAMP] = str(int(time.mktime(eventTime.timetuple()) * 1e3))
+        df.at[index, constants.HEADER_TIMESTAMP] = str(int(time.mktime(event_time.timetuple()) * 1e3))
         currentTime = currentTime + datetime.timedelta(seconds=random.randrange(3))
-        eventTime = currentTime
+        event_time = currentTime
 
         df.at[index, constants.HEADER_REMOTEIP] = ipAddressesForUsers[username]
 
@@ -122,40 +121,39 @@ def generateFailedLogin(df, iter=0, givenTime=None, username=None, contextID=Non
 
 
 # Generate Suspicious login - Login after consecutive failed logins
-def generateSuspiciousLoginScenario1(df):
+def generate_suspicious_login_scenario1(df):
     global currentTime, usernames, ipAddressesForUsers, index
     username = usernames[random.randrange(NUMBER_OF_USERS)]
-    contextID = uuid.uuid4()
+    context_id = uuid.uuid4()
     currentTime = currentTime + datetime.timedelta(seconds=random.randrange(3000))
-    failureCount = random.randrange(4, 7)
-    generateFailedLogin(df, failureCount, currentTime, username, contextID)
-    index = index + failureCount
+    failure_count = random.randrange(4, 7)
+    generate_failure_login(df, failure_count, currentTime, username, context_id)
+    index = index + failure_count
     currentTime = currentTime + datetime.timedelta(seconds=random.randrange(3))
-    generateSuccessfulLogin(df, currentTime, username, contextID, isSuspicious=True)
+    generate_successful_login(df, currentTime, username, context_id, is_suspicious=True)
     index = index + 1
 
 
 # Generate Suspicious login 2 - Login from suspicious IP
-def generateSuspiciousLoginScenario2(df):
+def generate_suspicious_login_scenario2(df):
     global currentTime, usernames, ipAddressesForUsers, index
     username = usernames[random.randrange(NUMBER_OF_USERS)]
-    # contextID = uuid.uuid4()
     currentTime = currentTime + datetime.timedelta(seconds=random.randrange(3000))
-    ip = generateRandomIPV4()
-    geoLoc = None
-    while geoLoc is None:
+    ip = generate_random_ipv4()
+    geo_loc = None
+    while geo_loc is None:
         while ip in geoLocationForIP:
-            ip = generateRandomIPV4()
-        geoLoc = geolocation.getGelocation(ip)
-        if geoLoc.latitude == geoLocationForIP[ipAddressesForUsers[username]].latitude and geoLoc.longitude == \
+            ip = generate_random_ipv4()
+        geo_loc = geolocation.get_geolocation(ip)
+        if geo_loc.latitude == geoLocationForIP[ipAddressesForUsers[username]].latitude and geo_loc.longitude == \
                 geoLocationForIP[ipAddressesForUsers[username]].longitude:
-            geoLoc = None
-            ip = generateRandomIPV4()
-    geoLocationForIP[ip] = geoLoc
-    generateSuccessfulLogin(df, currentTime, username)
+            geo_loc = None
+            ip = generate_random_ipv4()
+    geoLocationForIP[ip] = geo_loc
+    generate_successful_login(df, currentTime, username)
     index = index + 1
     currentTime = currentTime + datetime.timedelta(seconds=random.randrange(60))
-    generateSuccessfulLogin(df, currentTime, username, ip, isSuspicious=True)
+    generate_successful_login(df, currentTime, username, ip, is_suspicious=True)
     index = index + 1
 
 
@@ -177,29 +175,29 @@ def main():
     print("Generating IP addresses...")
     # generate an IP for each user
     for username in usernames:
-        ipAddressesForUsers[username] = generateRandomIPV4()
-        geoLocationForIP[ipAddressesForUsers[username]] = geolocation.getGelocation(ipAddressesForUsers[username])
+        ipAddressesForUsers[username] = generate_random_ipv4()
+        geoLocationForIP[ipAddressesForUsers[username]] = geolocation.get_geolocation(ipAddressesForUsers[username])
 
-    loginData = pd.DataFrame(index=None, columns=LOGIN_TABLE_COLUMNS)
+    login_data = pd.DataFrame(index=None, columns=LOGIN_TABLE_COLUMNS)
     index = 0
     iterations = ITERATIONS
     choices = [1, 2, 3, 4]
-    p = [0.25, 0.25, 0.499, 0.001]
+    p = [0.3, 0.3, 0.3, 0.1]
     print("Simulating user logins...")
     for i in range(iterations):
         c = np.random.choice(choices, p=p)
         if c == 1:
-            generateSuccessfulLogin(loginData)
+            generate_successful_login(login_data)
         elif c == 2:
-            generateFailedLogin(loginData)
+            generate_failure_login(login_data)
         elif c == 3:
-            generateSuspiciousLoginScenario1(loginData)
+            generate_suspicious_login_scenario1(login_data)
         else:
-            generateSuspiciousLoginScenario2(loginData)
+            generate_suspicious_login_scenario2(login_data)
         print('Iteration ', i, ' of ', iterations, ' completed.')
 
-    fileName = 'loginData-' + datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S') + '.csv'
-    loginData.to_csv(fileName)
+    fileName = 'login_data-' + datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S') + '.csv'
+    login_data.to_csv(fileName)
     print('Login data saved in \'' + fileName + '\'.')
 
 
