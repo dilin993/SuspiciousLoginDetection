@@ -7,11 +7,10 @@ import numpy as np
 from sklearn.metrics import classification_report
 from keras.utils import plot_model
 
-
 data = np.genfromtxt('feature-2018-12-09-21-36-56.csv', delimiter=',')
 N = data[0].size - 1
 
-x_train, x_test, y_train, y_test = train_test_split(data[:,0:-1], data[:,-1], test_size=0.3)
+x_train, x_test, y_train, y_test = train_test_split(data[:, 0:-1], data[:, -1], test_size=0.1)
 
 graph = tf.get_default_graph()
 
@@ -22,8 +21,8 @@ model = keras.Sequential([
 
 with graph.as_default():
     model.compile(optimizer=tf.train.AdamOptimizer(),
-              loss='sparse_categorical_crossentropy',
-              metrics=['accuracy'])
+                  loss='sparse_categorical_crossentropy',
+                  metrics=['accuracy'])
 
     logdir = '../logdir'
     writer = tf.summary.FileWriter(logdir=logdir, graph=graph)
@@ -31,7 +30,7 @@ with graph.as_default():
     print(' Logs saved in \'' + logdir + '\'. Run the following command to visualize the model in tensorboard:')
     print(' tensorboard --logdir ' + logdir)
 
-model.fit(x_train, y_train, epochs=5) #, callbacks=callbacks_list)
+model.fit(x_train, y_train, epochs=5)  # , callbacks=callbacks_list)
 
 model.save('model.h5')
 

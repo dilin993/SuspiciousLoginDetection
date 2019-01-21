@@ -13,6 +13,10 @@ USER_LATITUDE = 'latitude'
 USER_LONGITUDE = 'longitude'
 USER_COUNTRY = 'country'
 USER_SUSPICIOUS_LOGIN = 'suspiciousLogin'
+STEP_AUTHENTICATOR = 'stepAuthenticator'
+AUTHENTICATION_STEP = 'authenticationStep'
+
+BASIC_AUTHENTICATOR = 'BasicAuthenticator'
 
 EVENTYPE_STEP = 'step'
 EVENTYPE_OVERALL = 'overall'
@@ -25,6 +29,7 @@ prevLogin = {}
 
 MAX_TIME = 300
 MAX_GEOVELOCITY = 400
+
 
 
 class UserLogin:
@@ -84,6 +89,10 @@ def insert_to_login_data(data):
 
     if USER_USERNAME not in data:
         raise Exception("Invalid payload data!")
+    if AUTHENTICATION_STEP in data and STEP_AUTHENTICATOR in data:
+        if data[AUTHENTICATION_STEP] == '1' and data[STEP_AUTHENTICATOR] != BASIC_AUTHENTICATOR:
+            return  # skip anything other than basic authenticator
+
     username = data[USER_USERNAME]
 
     # not enough data
