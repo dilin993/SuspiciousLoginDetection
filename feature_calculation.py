@@ -91,7 +91,7 @@ def insert_to_login_data(data):
         raise Exception("Invalid payload data!")
     if AUTHENTICATION_STEP in data and STEP_AUTHENTICATOR in data:
         if data[AUTHENTICATION_STEP] == '1' and data[STEP_AUTHENTICATOR] != BASIC_AUTHENTICATOR:
-            return  # skip anything other than basic authenticator
+            return  # skip anything other than basic     authenticator
 
     username = data[USER_USERNAME]
 
@@ -126,7 +126,6 @@ def insert_to_login_data(data):
         if loginData[username].full():
             loginData[username].get()
     loginData[username].put(userlogin)
-    print(userlogin)
     prevLogin[username] = data
 
 
