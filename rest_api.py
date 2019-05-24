@@ -36,11 +36,11 @@ def publish():
     logging.info("Detection request received")
     data = request.json['event']
     logging.info("data = " + str(data))
-    username = data[feature_calculation.USER_USERNAME]
-    feature_calculation.insert_to_login_data(data)
-    x = feature_calculation.get_features(username)
+    # username = data[feature_calculation.USER_USERNAME]
+    feature_calculation.collect_features(data)
+    # x = feature_calculation.get_features(username)
     result = {}
-    result['suspicious'] = is_suspicious(x)
+    result['suspicious'] = False
     logging.info("Result = " + str(result))
     return jsonify(result)
 

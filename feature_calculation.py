@@ -2,202 +2,93 @@ import queue
 import numpy as np
 import datetime
 import geolocation
+import pandas as pd
+import logging
 
-USER_USERNAME = 'username'
-USER_CONTEXTID = 'contextId'
-USER_EVENTTYPE = 'eventType'
-USER_TIMESTAMP = '_timestamp'
-USER_REMOTEIP = 'remoteIp'
-USER_AUTHENTICATIONSUCCESS = 'authenticationSuccess'
-USER_LATITUDE = 'latitude'
-USER_LONGITUDE = 'longitude'
-USER_COUNTRY = 'country'
-USER_SUSPICIOUS_LOGIN = 'suspiciousLogin'
-STEP_AUTHENTICATOR = 'stepAuthenticator'
-AUTHENTICATION_STEP = 'authenticationStep'
+logging.basicConfig(format='%(asctime)s - %(message)s', datefmt='%d-%b-%y %H:%M:%S', level=logging.DEBUG)
 
-BASIC_AUTHENTICATOR = 'BasicAuthenticator'
-
-EVENTYPE_STEP = 'step'
-EVENTYPE_OVERALL = 'overall'
+DATA_USERNAME = 'username'
+DATA_TIMESTAMP = 'timestamp'
+DATA_START_TIMESTAMP = 'startTimestamp'
+DATA_REMOTE_IP = 'remoteIp'
+DATA_LOGIN_SUCCESS = 'loginSuccess'
+DATA_FAILURE_COUNT = 'failureCount'
 
 WINDOW_SIZE = 5
 
 geoLocationForIP = {}
-loginData = {}
-prevLogin = {}
+userData = []
 
-MAX_TIME = 300
-MAX_GEOVELOCITY = 400
+FEATURE_USERNAME = 'username'
+FEATURE_WEEKDAY = 'weekday'
+FEATURE_HOUR = 'hour'
+# FEATURE_LOGIN_SUCCESS = 'loginSuccess'
+FEATURE_FAILURE_COUNT = 'failureCount'
+FEATURE_LONGITUDE = 'longitude'
+FEATURE_LATITUDE = 'latitude'
+FEATURE_LOGIN_TIME = 'loginTime'
+
+BATCH_COUNT = 10
 
 
-
-class UserLogin:
-    loginSuccess = False
+class Data:
+    username = ""
     timestamp = None
-    ip = ''
-    contextID = ''
-    isSuspicious = False
+    startTimestamp = None
+    remoteIp = ""
+    loginSuccess = 0
+    failureCount = 0
+    longitude = 0.0
+    latitude = 0.0
 
-    def __init__(self, username):
-        self.username = username
-
-    def __str__(self):
-        tmpstr = ""
-        tmpstr = tmpstr + "\nUser: " + self.username + "\n"
-        tmpstr = tmpstr + "loginSucess: " + str(self.loginSuccess) + "\n\n"
-        return tmpstr
-
-    def get_username(self):
-        return self.username
-
-    def set_geolocation(self, ip):
-        self.ip = ip
-        if ip not in geoLocationForIP:
-            geoLocationForIP[ip] = geolocation.get_geolocation(ip)
-
-    def get_geolocation(self):
-        if self.ip == '':
-            raise Exception("IP not set!")
-        if self.ip not in geoLocationForIP:
-            raise Exception("IP entry not found!")
-        return geoLocationForIP[self.ip]
-
-    def set_geolocation_from_data(self, data):
-        try:
-            self.ip = data[USER_REMOTEIP]
-            latitude = data[USER_LATITUDE]
-            longitude = data[USER_LONGITUDE]
-            country = data[USER_COUNTRY]
-            if self.ip not in geoLocationForIP:
-                geoLocationForIP[self.ip] = geolocation.GeoLocation(latitude, longitude, country)
-        except KeyError:
-            if self.ip != '':
-                self.set_geolocation(self.ip)
-
-    def flag_suspicious(self, data):
-        if USER_SUSPICIOUS_LOGIN in data:
-            suspicious_login = str(data[USER_SUSPICIOUS_LOGIN]).lower()
-            if suspicious_login == '1':
-                self.isSuspicious = True
+    def __init__(self, json):
+        if DATA_USERNAME in json:
+            self.username = json[DATA_USERNAME]
+        if DATA_TIMESTAMP in json:
+            self.timestamp = datetime.datetime.fromtimestamp(json[DATA_TIMESTAMP] / 1e3)
+        if DATA_START_TIMESTAMP in json:
+            self.startTimestamp = datetime.datetime.fromtimestamp(json[DATA_START_TIMESTAMP] / 1e3)
+        if DATA_REMOTE_IP in json:
+            self.remoteIp = json[DATA_REMOTE_IP]
+            location = None
+            if self.remoteIp not in geoLocationForIP:
+                location = geolocation.get_geolocation(self.remoteIp)
+                geoLocationForIP[self.remoteIp] = location
             else:
-                self.isSuspicious = False
+                location = geoLocationForIP[self.remoteIp]
+            self.longitude = location.longitude
+            self.latitude = location.latitude
+
+        if DATA_LOGIN_SUCCESS in json:
+            self.loginSuccess = json[DATA_LOGIN_SUCCESS]
+        if DATA_FAILURE_COUNT in json:
+            self.failureCount = json[DATA_FAILURE_COUNT]
+
+    def get_features(self):
+        features = dict()
+        features[FEATURE_USERNAME] = self.username
+        features[FEATURE_LOGIN_TIME] = (self.timestamp - self.startTimestamp).seconds
+        features[FEATURE_FAILURE_COUNT] = self.failureCount
+        features[FEATURE_LONGITUDE] = self.longitude
+        features[FEATURE_LATITUDE] = self.latitude
+        features[FEATURE_WEEKDAY] = self.timestamp.weekday()
+        features[FEATURE_HOUR] = self.timestamp.hour
+        return features
 
 
-# Insert given payload data to loginData
-def insert_to_login_data(data):
-
-    if USER_USERNAME not in data:
-        raise Exception("Invalid payload data!")
-    if AUTHENTICATION_STEP in data and STEP_AUTHENTICATOR in data:
-        if data[AUTHENTICATION_STEP] == '1' and data[STEP_AUTHENTICATOR] != BASIC_AUTHENTICATOR:
-            return  # skip anything other than basic     authenticator
-
-    username = data[USER_USERNAME]
-
-    # not enough data
-    if username not in prevLogin:
-        prevLogin[username] = data
-        return
-    prev = prevLogin[username]
-
-    userlogin = UserLogin(username)
-
-    if prev[USER_CONTEXTID] == data[USER_CONTEXTID] and prev[USER_EVENTTYPE] == EVENTYPE_STEP and \
-            data[USER_EVENTTYPE] == EVENTYPE_OVERALL and data[USER_AUTHENTICATIONSUCCESS]:
-        userlogin.loginSuccess = True
-        userlogin.timestamp = datetime.datetime.fromtimestamp(data[USER_TIMESTAMP] / 1e3)
-        userlogin.set_geolocation_from_data(data)
-        userlogin.contextID = data[USER_CONTEXTID]
-        userlogin.flag_suspicious(data)
-    elif prev[USER_EVENTTYPE] == EVENTYPE_STEP and not prev[USER_AUTHENTICATIONSUCCESS]:
-        userlogin.loginSuccess = False
-        userlogin.timestamp = datetime.datetime.fromtimestamp(prev[USER_TIMESTAMP] / 1e3)
-        userlogin.set_geolocation_from_data(prev)
-        userlogin.contextID = prev[USER_CONTEXTID]
-        userlogin.flag_suspicious(prev)
-    else:
-        prevLogin[username] = data
-        return
-
-    if username not in loginData:
-        loginData[username] = queue.Queue(maxsize=WINDOW_SIZE)
-    else:
-        if loginData[username].full():
-            loginData[username].get()
-    loginData[username].put(userlogin)
-    prevLogin[username] = data
+def collect_features(json):
+    global userData
+    data = Data(json)
+    userData.append(data.get_features())
+    logging.info('Collected data ' + str(len(userData)) + ' of ' + str(BATCH_COUNT))
+    if len(userData) >= BATCH_COUNT:
+        df = pd.DataFrame(userData)
+        filename = 'login_data.csv'
+        df.to_csv(filename, index=False, mode='a')
+        logging.info('Login data saved in \'' + filename + '\'.')
+        userData = []
 
 
-def get_time_diff(timestamp1, timestamp2):
-    diff = abs((timestamp1 - timestamp2).seconds)
-    return diff
 
 
-# Calculate the features of current user and returns a numpy array
-def get_features(username, append_label=False):
-
-    if username not in loginData:
-        return None
-    userdata = list(loginData[username].queue)
-    if len(userdata) < WINDOW_SIZE:
-        return None
-    feature = []
-    prev_consecutive_failures = 0
-    consecutive_failure_time = 0.0
-    login_success = 0
-    last_geo_velocity = 0.0
-    max_geo_velocity = 0
-    num_failures = 0
-    ip_changed_last_time = 0
-
-    if userdata[WINDOW_SIZE - 1].loginSuccess:
-        login_success = 1
-    cur_context_id = userdata[WINDOW_SIZE - 1].contextID
-    cur_time = userdata[WINDOW_SIZE - 1].timestamp
-    last_time_diff = get_time_diff(cur_time, userdata[WINDOW_SIZE - 2].timestamp)
-    last_dist = abs(geolocation.distance(userdata[WINDOW_SIZE - 1].get_geolocation(),
-                                        userdata[WINDOW_SIZE - 2].get_geolocation()))
-
-    if last_dist != 0:
-        last_geo_velocity = last_dist / last_time_diff
-
-    if userdata[WINDOW_SIZE - 1].ip != userdata[WINDOW_SIZE - 2].ip:
-        ip_changed_last_time = 1
-
-    for i in range(WINDOW_SIZE - 2, -1, -1):
-        if userdata[i].contextID == cur_context_id:
-            prev_consecutive_failures = prev_consecutive_failures + 1
-            consecutive_failure_time = get_time_diff(cur_time, userdata[i].timestamp)
-        else:
-            break
-
-    for i in range(WINDOW_SIZE):
-        if i > 0:
-            dt = get_time_diff(userdata[i - 1].timestamp, userdata[i].timestamp)
-            dist = abs(geolocation.distance(userdata[i-1].get_geolocation(), userdata[i].get_geolocation()))
-            geo_velocity = 0
-            if dist != 0 and dt != 0:
-                geo_velocity = dist / dt
-            if max_geo_velocity < geo_velocity:
-                max_geo_velocity = geo_velocity
-
-        if not userdata[i].loginSuccess:
-            num_failures = num_failures + 1
-
-    # add new feature row
-    feature.append(float(min(last_geo_velocity, MAX_GEOVELOCITY)) / float(MAX_GEOVELOCITY))
-    feature.append(float(prev_consecutive_failures) / float(WINDOW_SIZE))
-    feature.append(float(login_success))
-    feature.append(float(min(consecutive_failure_time, MAX_TIME)) / float(MAX_TIME))
-    # feature.append(float(min(maxGeoVelocity, MAX_GEOVELOCITY)) / float(MAX_GEOVELOCITY))
-    feature.append(float(ip_changed_last_time))
-    feature.append(float(num_failures) / float(WINDOW_SIZE))
-    if append_label:
-        if userdata[WINDOW_SIZE-1].isSuspicious:
-            feature.append(1)
-        else:
-            feature.append(0)
-
-    return np.array(feature, dtype=np.float64)
 
